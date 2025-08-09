@@ -38,10 +38,26 @@ spec:
         volumeMounts:
         - name: initdb
           mountPath: /docker-entrypoint-initdb.d
+        - name: postgres-persistent-storage
+          mountPath: /var/lib/postgresql/data
       volumes:
       - name: initdb
         configMap:
           name: postgres-order-initdb
+      - name: postgres-persistent-storage
+        persistentVolumeClaim:
+          claimName: postgres-order-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-order-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
 ---
 apiVersion: v1
 kind: Service
@@ -69,7 +85,7 @@ spec:
     spec:
       containers:
       - name: order-service
-        image: order-service
+        image: YOUR_ECR_REPO/order-service:latest
         ports:
         - containerPort: 5000
         env:
@@ -81,16 +97,15 @@ spec:
           value: postgres
         - name: DB_PASSWORD
           value: password
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: order-service
 spec:
-  type: NodePort
+  type: LoadBalancer
   ports:
   - port: 5000
-    nodePort: 30002
   selector:
     app: order-service

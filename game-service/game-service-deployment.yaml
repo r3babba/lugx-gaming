@@ -52,10 +52,26 @@ spec:
           volumeMounts:
             - name: initdb
               mountPath: /docker-entrypoint-initdb.d
+            - name: postgres-persistent-storage
+              mountPath: /var/lib/postgresql/data
       volumes:
         - name: initdb
           configMap:
             name: game-init-script
+        - name: postgres-persistent-storage
+          persistentVolumeClaim:
+            claimName: postgres-game-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-game-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
 ---
 apiVersion: v1
 kind: Service
@@ -64,11 +80,10 @@ metadata:
 spec:
   selector:
     app: game-service
-  type: NodePort
+  type: LoadBalancer
   ports:
     - port: 5000
       targetPort: 5000
-      nodePort: 30011
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -86,8 +101,8 @@ spec:
     spec:
       containers:
         - name: game-service
-          image: game-service
-          imagePullPolicy: IfNotPresent 
+          image: YOUR_ECR_REPO/game-service:latest
+          imagePullPolicy: Always 
           ports:
             - containerPort: 5000
           env:
